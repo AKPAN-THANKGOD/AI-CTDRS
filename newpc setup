@@ -1,0 +1,12 @@
+cd D:\PROJECT\CTDRS\backend
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
+
+# Frontend (in a new terminal)
+cd D:\PROJECT\CTDRS\frontend
+npm install
+npm run dev

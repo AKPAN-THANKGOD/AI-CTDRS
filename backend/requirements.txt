@@ -1,0 +1,35 @@
+# ============================================
+# AI-CTDRS Backend Dependencies
+# Flexible versions for Python 3.14 compatibility
+# ============================================
+
+# ----- Django Core -----
+Django>=4.2
+djangorestframework>=3.14
+djangorestframework-simplejwt>=5.3
+django-cors-headers>=4.3
+django-filter>=23.5
+django-extensions>=3.2
+
+# ----- Async / WebSockets -----
+channels>=4.0
+daphne>=4.0
+
+# ----- API Documentation -----
+drf-spectacular>=0.27
+
+# ----- ML / Data Science (let pip find latest compatible) -----
+pandas
+numpy
+scikit-learn
+xgboost
+joblib
+
+# ----- Explainable AI (XAI) -----
+shap
+lime
+
+# ----- Production (Optional, for AWS deployment) -----
+# gunicorn
+# whitenoise
+# psycopg2-binary
