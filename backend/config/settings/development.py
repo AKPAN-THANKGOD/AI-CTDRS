@@ -1,13 +1,18 @@
 from pathlib import Path
 import os
 
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = 'django-insecure-ctdrs-dev-key-change-in-production-12345'
+# SECURITY WARNING: keep the secret key used in production secret!
+# In production, set this in Render's Environment Variables
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-ctdrs-dev-key-change-in-production-12345')
 
-DEBUG = True
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['*']
+# Allow all hosts for demo, or specify your Render URL in production
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
 # Application definition
 INSTALLED_APPS = [
@@ -33,11 +38,12 @@ INSTALLED_APPS = [
     'apps.incidents',
     'apps.alerts',
     'apps.analytics',
-    'apps.settings',        # 👈 NEW: Settings app
+    'apps.settings',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # 👈 ADDED: Serves static files efficiently in production
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -69,15 +75,15 @@ WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
 # Database
+# ⚠️ NOTE: Render's free tier has an ephemeral filesystem. SQLite will reset on redeploy.
+# For a permanent thesis demo, this is usually fine. For long-term use, add DATABASE_URL 
+# to Render environment variables and use the 'dj-database-url' package.
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
-
-# Custom User Model
-AUTH_USER_MODEL = 'users.User'   # 👈 IMPORTANT: Must be 'users.User' NOT 'auth_module.User'
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -93,11 +99,16 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static files
+# Static files (CSS, JavaScript, Images)
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # 👈 ADDED: Where collectstatic puts files
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'  # 👈 ADDED: Compresses static files
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Custom User Model
+AUTH_USER_MODEL = 'users.User'
 
 # REST Framework
 REST_FRAMEWORK = {
@@ -126,19 +137,27 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# CORS
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS (Crucial for Vercel Frontend -> Render Backend communication)
+CORS_ALLOW_ALL_ORIGINS = True  # 👈 ADDED: Allows your Vercel app to make requests
 
-# Channels
+# If you want to be more secure later, comment the line above and use this:
+# CORS_ALLOWED_ORIGINS = [
+#     "https://your-vercel-app-name.vercel.app",
+#     "http://localhost:3000",
+# ]
+
+# Channels (WebSockets)
+# Note: Render's free tier supports WebSockets, but InMemoryChannelLayer only works 
+# for a single worker. For production scale, you'd use Redis, but this is perfect for a demo.
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer',
     },
 }
 
-# Spectacular (API docs)
+# Spectacular (API Documentation)
 SPECTACULAR_SETTINGS = {
     'TITLE': 'AI-CTDRS API',
-    'DESCRIPTION': 'Cyber Threat Detection & Response System',
+    'DESCRIPTION': 'Cyber Threat Detection & response System with Explainable AI',
     'VERSION': '1.0.0',
 }
