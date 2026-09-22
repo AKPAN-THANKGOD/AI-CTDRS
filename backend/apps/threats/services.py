@@ -22,14 +22,12 @@ class ThreatDetectionService:
         model_dir = os.path.join(django_settings.BASE_DIR, 'ml_models')
         
         try:
-            cls._rf_model = joblib.load(os.path.join(model_dir, 'random_forest_model.pkl'))
-            cls._xgb_model = joblib.load(os.path.join(model_dir, 'xgboost_model.pkl'))
+            cls._rf_model = joblib.load(os.path.join(model_dir, 'random_forest.pkl'))
+            cls._xgb_model = joblib.load(os.path.join(model_dir, 'xgboost.pkl'))
             cls._scaler = joblib.load(os.path.join(model_dir, 'scaler.pkl'))
             
-            # Load feature names
-            import json
-            with open(os.path.join(model_dir, 'feature_names.json'), 'r') as f:
-                cls._feature_names = json.load(f)
+            # Load feature names (matching your training script output)
+            cls._feature_names = joblib.load(os.path.join(model_dir, 'feature_names.pkl'))
             
             cls._models_loaded = True
             print(f"✅ All models loaded. Features: {len(cls._feature_names)}")

@@ -1,35 +1,72 @@
-# ============================================
-# AI-CTDRS Backend Dependencies
-# Flexible versions for Python 3.14 compatibility
-# ============================================
-
-# ----- Django Core -----
-Django>=4.2
-djangorestframework>=3.14
-djangorestframework-simplejwt>=5.3
-django-cors-headers>=4.3
-django-filter>=23.5
-django-extensions>=3.2
-
-# ----- Async / WebSockets -----
-channels>=4.0
-daphne>=4.0
-
-# ----- API Documentation -----
-drf-spectacular>=0.27
-
-# ----- ML / Data Science (let pip find latest compatible) -----
-pandas
-numpy
-scikit-learn
-xgboost
-joblib
-
-# ----- Explainable AI (XAI) -----
-shap
-lime
-
-# ----- Production (Optional, for AWS deployment) -----
-# gunicorn
-# whitenoise
-# psycopg2-binary
+asgiref==3.12.1
+attrs==26.1.0
+autobahn==26.7.1
+Automat==25.4.16
+cbor2==6.1.4
+cffi==2.1.1
+channels==4.3.2
+charset-normalizer==3.5.1
+cloudpickle==3.1.2
+colorama==0.4.6
+constantly==23.10.4
+contourpy==1.4.0
+cryptography==50.0.1
+cycler==0.12.1
+daphne==4.2.3
+Django==6.1.1
+django-cors-headers==4.9.0
+django-extensions==4.1
+django-filter==26.1
+djangorestframework==3.18.1
+djangorestframework_simplejwt==5.5.1
+drf-spectacular==0.30.0
+fonttools==4.65.0
+hyperlink==21.0.0
+idna==3.20
+ImageIO==2.37.4
+Incremental==24.11.0
+inflection==0.5.1
+joblib==1.6.0
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+kiwisolver==1.5.1
+lazy-loader==0.5
+lime==0.2.0.1
+llvmlite==0.49.0
+matplotlib==3.11.2
+msgpack==1.2.2
+narwhals==2.26.0
+networkx==3.6.1
+numba==0.67.0
+numpy==2.5.3
+packaging==26.3
+pandas==3.0.6
+pillow==12.3.0
+pycparser==3.0
+PyJWT==2.14.0
+pyOpenSSL==26.4.0
+pyparsing==3.3.3
+python-dateutil==2.9.0.post0
+PyYAML==6.0.3
+referencing==0.37.0
+reportlab==5.0.1
+rpds-py==2026.6.3
+scikit-image==0.26.0
+scikit-learn==1.9.1
+scipy==1.18.1
+service-identity==26.1.0
+shap==0.52.0
+six==1.17.0
+slicer==0.0.8
+sqlparse==0.6.0
+threadpoolctl==3.7.0
+tifffile==2026.9.20
+tqdm==4.70.1
+Twisted==26.4.0
+txaio==26.6.1
+typing_extensions==4.16.0
+tzdata==2026.4
+ujson==6.0.0
+uritemplate==4.2.0
+xgboost==3.4.1
+zope.interface==8.6
