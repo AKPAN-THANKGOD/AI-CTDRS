@@ -70,10 +70,7 @@ Thumbs.db
 Thumbs.db
 desktop.ini
 
-# ML Models (too large for GitHub)
-backend/ml_models/*.pkl
-backend/ml_models/*.h5
-!backend/ml_models/.gitkeep
+
 
 # Logs
 *.log
