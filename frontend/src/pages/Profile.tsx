@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { userService } from '../services/api';
+import { authService } from '../services/api'; // ✅ FIXED: Changed from userService to authService
 import toast, { Toaster } from 'react-hot-toast';
 
 interface Profile {
@@ -21,7 +21,8 @@ export default function Profile() {
 
   const fetchProfile = async () => {
     try {
-      const res = await userService.getProfile();
+      // ✅ FIXED: Changed from userService.getProfile() to authService.getProfile()
+      const res = await authService.getProfile();
       setProfile(res.data);
       setFullName(res.data.full_name);
       setRole(res.data.role);
@@ -35,7 +36,8 @@ export default function Profile() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await userService.updateProfile({ full_name: fullName, role });
+      // ✅ FIXED: Changed from userService.updateProfile() to authService.updateProfile()
+      const res = await authService.updateProfile({ full_name: fullName, role });
       setProfile(res.data);
       setEditing(false);
       toast.success("Profile updated");
@@ -200,7 +202,8 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
     }
     setLoading(true);
     try {
-      await userService.changePassword({
+      // ✅ FIXED: Changed from userService.changePassword() to authService.changePassword()
+      await authService.changePassword({
         old_password: oldPassword,
         new_password: newPassword,
         new_password_confirm: confirmPassword
