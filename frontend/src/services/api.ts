@@ -3,7 +3,7 @@ import axios from 'axios';
 // 🔧 IMPORTANT: Replace this with YOUR actual Render URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://ai-ctdrs.onrender.com/api';
 // Point to local backend for testing
-//  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+// const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
