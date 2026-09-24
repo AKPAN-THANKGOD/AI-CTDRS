@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { userService } from '../services/api';
+import { authService } from '../services/api'; // 👈 CHANGED: authService instead of userService
 import toast, { Toaster } from 'react-hot-toast';
 
 export default function Register() {
@@ -14,33 +14,49 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (password !== passwordConfirm) {
       toast.error("Passwords do not match");
       return;
     }
+    
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await userService.register({
+      // 👈 CHANGED: Use authService.register
+      const response = await authService.register({
         email,
         full_name: fullName,
         password,
-        password_confirm: passwordConfirm,
-        role
+        role,
+        // Add password_confirm just in case your backend serializer requires it
+        password_confirm: passwordConfirm 
       });
       
       // Auto-login after registration
       localStorage.setItem('access_token', response.data.access);
       localStorage.setItem('refresh_token', response.data.refresh);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
       
       toast.success('Account created successfully!');
-      navigate('/');
+      navigate('/dashboard');
     } catch (error: any) {
+      // This will print the exact backend error to the console
+      console.error("🔴 Registration Error Details:", error);
+      console.error("🔴 Backend Response:", error.response?.data);
+      
       const errors = error.response?.data;
       if (errors) {
-        const firstError = Object.values(errors).flat()[0];
-        toast.error(firstError as string || 'Registration failed');
+        const firstError = typeof errors === 'string' 
+          ? errors 
+          : Object.values(errors).flat()[0] || 'Registration failed';
+        toast.error(firstError as string);
       } else {
-        toast.error('Registration failed');
+        toast.error('Network error. Check browser console (F12) for details.');
       }
     } finally {
       setLoading(false);
