@@ -20,24 +20,20 @@ export default function ThreatAnalysis() {
   const handleAnalyze = async () => {
     setLoading(true);
     try {
-      // ✅ CORRECT: Combine everything into ONE flat object
+      // ✅ CORRECT: Matches exactly what the Django serializer expects
       const payload = {
-        ...features,
-        source_ip: srcIp,
-        destination_ip: dstIp,
+        features: features,
+        src_ip: srcIp,
+        dst_ip: dstIp,
       };
 
-      // threatService.analyze will automatically wrap this in { features: payload }
       const response = await threatService.analyze(payload);
-      
       setResult(response.data);
       toast.success("Analysis complete!");
     } catch (error: any) {
-      // 🔍 This will print the exact backend error to the console
       console.error("🔴 Backend Error Details:", error.response?.data);
-      
       const errorMsg = error.response?.data?.detail || error.response?.data?.features || "Analysis failed";
-      toast.error(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
+      toast.error(typeof errorMsg === 'string' ? errorMsg : "Check console for details");
     } finally {
       setLoading(false);
     }

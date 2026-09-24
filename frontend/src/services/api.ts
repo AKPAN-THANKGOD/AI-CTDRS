@@ -30,7 +30,6 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // If 401 and not already retrying, try to refresh token
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
@@ -46,7 +45,6 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${access}`;
           return api(originalRequest);
         } catch (refreshError) {
-          // Refresh failed, logout user
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
           localStorage.removeItem('user');
@@ -71,7 +69,7 @@ export const authService = {
     password: string;
     full_name: string;
     role: string;
-    password_confirm?: string; // 👈 ADDED: This fixes the TypeScript red line
+    password_confirm?: string; 
   }) => {
     return api.post('/auth/register/', data);
   },
@@ -103,8 +101,9 @@ export const threatsService = {
     return api.get(`/threats/${id}/`);
   },
 
-  analyze: (features: any) => {
-    return api.post('/threats/analyze/', { features });
+  // ✅ FIX: Send data exactly as the component formats it (no extra wrapping)
+  analyze: (data: any) => {
+    return api.post('/threats/analyze/', data);
   },
 
   respond: (id: string, data: { action: string; notes: string }) => {
