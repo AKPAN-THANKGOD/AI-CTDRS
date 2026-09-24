@@ -7,12 +7,12 @@ export default function ThreatAnalysis() {
   const [srcIp, setSrcIp] = useState("192.168.1.100");
   const [dstIp, setDstIp] = useState("10.0.0.1");
   const [features, setFeatures] = useState({
-    "Flow Duration": 10,
-    "Total Fwd Packets": 50000,
-    "Total Backward Packets": 10,
-    "Flow Bytes/s": 50000000,
-    "Flow Packets/s": 500000,
-    "SYN Flag Count": 50000,
+    "Flow Duration": 125000,
+    "Total Fwd Packets": 8500,
+    "Total Backward Packets": 1200,
+    "Flow Bytes/s": 3400000,
+    "Flow Packets/s": 78000,
+    "SYN Flag Count": 15000,
   });
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -20,15 +20,24 @@ export default function ThreatAnalysis() {
   const handleAnalyze = async () => {
     setLoading(true);
     try {
-      const response = await threatService.analyze({
-        features,
-        src_ip: srcIp,
-        dst_ip: dstIp,
-      });
+      // ✅ CORRECT: Combine everything into ONE flat object
+      const payload = {
+        ...features,
+        source_ip: srcIp,
+        destination_ip: dstIp,
+      };
+
+      // threatService.analyze will automatically wrap this in { features: payload }
+      const response = await threatService.analyze(payload);
+      
       setResult(response.data);
       toast.success("Analysis complete!");
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Analysis failed");
+      // 🔍 This will print the exact backend error to the console
+      console.error("🔴 Backend Error Details:", error.response?.data);
+      
+      const errorMsg = error.response?.data?.detail || error.response?.data?.features || "Analysis failed";
+      toast.error(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
     } finally {
       setLoading(false);
     }
@@ -111,29 +120,29 @@ export default function ThreatAnalysis() {
                 'bg-green-950 border border-green-800'
               }`}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-white font-bold text-lg">{result.threat_type}</span>
+                  <span className="text-white font-bold text-lg">{result.threat_type || "Unknown Threat"}</span>
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                     result.severity === 'critical' ? 'bg-red-900 text-red-300' :
                     result.severity === 'high' ? 'bg-orange-900 text-orange-300' :
                     result.severity === 'medium' ? 'bg-yellow-900 text-yellow-300' :
                     'bg-green-900 text-green-300'
                   }`}>
-                    {result.severity.toUpperCase()}
+                    {(result.severity || "low").toUpperCase()}
                   </span>
                 </div>
                 <p className="text-gray-300 text-sm">
-                  Confidence: <span className="font-bold text-white">{(result.confidence * 100).toFixed(2)}%</span>
+                  Confidence: <span className="font-bold text-white">{((result.confidence || 0) * 100).toFixed(2)}%</span>
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="bg-gray-800 p-3 rounded">
                   <p className="text-gray-400 text-xs">Source IP</p>
-                  <p className="text-white font-mono">{result.source_ip}</p>
+                  <p className="text-white font-mono">{result.source_ip || srcIp}</p>
                 </div>
                 <div className="bg-gray-800 p-3 rounded">
                   <p className="text-gray-400 text-xs">Status</p>
-                  <p className="text-white">{result.status}</p>
+                  <p className="text-white">{result.status || "Analyzed"}</p>
                 </div>
               </div>
 
