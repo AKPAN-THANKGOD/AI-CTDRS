@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { threatService } from "../services/api";
+import { threatsService } from "../services/api";
 import api from "../services/api";
 import type { Threat } from "../types";
 import toast from "react-hot-toast";
@@ -25,14 +25,20 @@ export default function Threats() {
 
   const fetchThreats = async () => {
     try {
-      const res = await threatService.list();
+      // ✅ FIXED: Use threatsService.getAll() instead of threatService.list()
+      const res = await threatsService.getAll();
       setThreats(res.data.results || res.data);
-    } catch { toast.error("Failed to load threats"); } finally { setLoading(false); }
+    } catch (error) {
+      console.error("Failed to load threats:", error);
+      toast.error("Failed to load threats"); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleDismiss = async (threatId: string) => {
     try {
-      await threatService.dismiss(threatId);
+      await threatsService.dismiss(threatId);
       toast.success("Threat dismissed");
       setThreats(threats.filter((t) => t.id !== threatId));
       if (selectedThreat?.id === threatId) setSelectedThreat(null);
