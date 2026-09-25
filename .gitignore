@@ -84,3 +84,24 @@ htmlcov/
 # Temporary files
 *.tmp
 *.bak
+
+# ============================================
+# AI-CTDRS Large Files (DO NOT PUSH TO GITHUB)
+# ============================================
+
+# Trained ML Models (50-100MB each)
+backend/models/**/*.pkl
+backend/models/**/*.h5
+backend/models/**/*.joblib
+backend/models/**/*.pth
+
+# Datasets (358MB+)
+backend/datasets/**/*.csv
+backend/datasets/**/*.zip
+backend/datasets/**/*.arff
+backend/datasets/**/*.parquet
+
+# Keep only the training scripts (they're small)
+!backend/apps/threats/train_*.py
+!backend/apps/threats/fix_*.py
+!backend/apps/threats/preprocess_*.py
