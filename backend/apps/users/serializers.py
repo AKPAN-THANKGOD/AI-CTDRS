@@ -17,7 +17,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         if attrs['password'] != attrs['password_confirm']:
             raise serializers.ValidationError({"password_confirm": "Passwords do not match."})
         
-        if User.objects.filter(email=attrs['email']).exists():
+        if User.objects.filter(email__iexact=attrs['email']).exists():
             raise serializers.ValidationError({"email": "A user with this email already exists."})
         
         return attrs
@@ -38,7 +38,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         
         user = User.objects.create_user(
             username=username,
-            email=validated_data['email'],
+            email=validated_data['email'].strip().lower(),
             password=password,
             full_name=validated_data.get('full_name', ''),
             role=validated_data.get('role', 'analyst')
@@ -52,11 +52,16 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
-        email = attrs.get('email')
-        password = attrs.get('password')
+        # 🔧 BULLETPROOF: Strip spaces and make case-insensitive
+        email = attrs.get('email', '').strip().lower()
+        password = attrs.get('password', '')
+
+        if not email or not password:
+            raise serializers.ValidationError({"non_field_errors": ["Email and password are required."]})
 
         try:
-            user = User.objects.get(email=email)
+            # 🔧 BULLETPROOF: Use iexact to ignore trailing spaces in the database
+            user = User.objects.get(email__iexact=email)
         except User.DoesNotExist:
             raise serializers.ValidationError({"non_field_errors": ["Invalid email or password"]})
 

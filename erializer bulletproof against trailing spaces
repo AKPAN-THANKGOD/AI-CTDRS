@@ -1,0 +1,179 @@
+[33mcommit ac1f3b90dd876fba368c1e30faefed9fbc828c06[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Fri Oct 9 18:51:06 2026 +0100
+
+    Secure auto-admin creation via post_migrate signal
+
+[33mcommit 88f92c4a294b6f5f5fd1216681987eb16c9949c4[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Fri Oct 9 18:33:25 2026 +0100
+
+    Secure auto-admin creation via post_migrate signal
+
+[33mcommit e548ec3c29c3cb5756639ad0cd2b620f4dc33804[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Fri Oct 9 18:20:45 2026 +0100
+
+    Add IsAdminOrReadOnly to permissions.py
+
+[33mcommit ac1866d8b1c3bc24cdacd5c83494e98c8a1c95fa[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Fri Oct 9 18:17:02 2026 +0100
+
+    Fix ROLES import error in views.py
+
+[33mcommit a2e5ef5a399d4ed0ee6b684e6f9bd200f899e178[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Fri Oct 9 17:49:09 2026 +0100
+
+    testing
+
+[33mcommit e90992c201f08fcf940430d465ee32528183f39e[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Fri Oct 9 15:28:14 2026 +0100
+
+    testing
+
+[33mcommit a114b49697ff11d0bff1c908e62e8ecc4ecce98f[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Fri Oct 9 15:15:27 2026 +0100
+
+    testing
+
+[33mcommit fd5a190bdf3d8b826a37fcaa45612d12b90d32b3[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Fri Oct 9 15:08:39 2026 +0100
+
+    Fix JWT authentication to use email instead of username
+
+[33mcommit 926637d28c4f0719c9d5503ea8346b766167e08b[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Fri Oct 9 14:52:37 2026 +0100
+
+    Add auto-admin creation management command
+
+[33mcommit 91846ecc0872f5050435ef29148695d311f680e0[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Fri Oct 9 14:13:14 2026 +0100
+
+    ensure_admin update
+
+[33mcommit b76a6c13d5b8343f50e4982df1d7e7c8f9bbc41b[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Fri Oct 9 12:40:03 2026 +0100
+
+    Security fixes, detection fix, incident-threat link
+
+[33mcommit f5037a48f0ecdee4579e441b3bb7dee1f3d1efbe[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Sat Sep 26 04:28:56 2026 +0100
+
+    confusion matrix and lime explanation
+
+[33mcommit ad0750263cd7802d40356d6d8262f15a43a3d3ee[m[33m ([m[1;32mHead[m[33m)[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Fri Sep 25 17:38:53 2026 +0100
+
+    Fix authentication, threat analysis, profile, and add model training scripts
+
+[33mcommit 3411e979fcbead0183156a8852b181484b7a5805[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Thu Sep 24 16:12:11 2026 +0100
+
+    Fix Profile.tsx to use authService instead of userService
+
+[33mcommit 42d913cab0fed458adcdd484d574443343ffcbd2[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Thu Sep 24 15:59:56 2026 +0100
+
+    Fix threats list method call
+
+[33mcommit d4afb86567b16f2adb61ce33a13fd62959780039[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Thu Sep 24 15:46:01 2026 +0100
+
+    Fix threat analysis payload formatting
+
+[33mcommit 89ce2b465584c051b94bb2e358a50eea2efedef0[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Thu Sep 24 15:38:11 2026 +0100
+
+    Fix double-nesting bug in threat analysis payload
+
+[33mcommit efcae639ec48b1eb4dac75a8b3da0daafa7cfcc1[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Thu Sep 24 15:05:29 2026 +0100
+
+    Fix TypeScript error in authService register type
+
+[33mcommit 677eb3448601a0d23192c13c59e6b6cfcf9af931[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Thu Sep 24 15:03:11 2026 +0100
+
+    Fix TypeScript error in authService register type
+
+[33mcommit eebf92c42dbe0e2081e4b5cf9a23d6126c20e7d1[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Thu Sep 24 12:43:03 2026 +0100
+
+    Fix Vite base path for production deployment
+
+[33mcommit 8c00f4ac9db1c4d103e91f02a4d42620835e6663[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Thu Sep 24 12:16:31 2026 +0100
+
+    Remove vercel.json to fix Vercel build
+
+[33mcommit ac1488676a2f33c34fa7ac9b58c502533dbec8f4[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Thu Sep 24 11:58:33 2026 +0100
+
+    Add vercel.json to fix build output directory
+
+[33mcommit d738942e2f96e6e09a80a468a164ce4c7602cc4c[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Thu Sep 24 11:57:58 2026 +0100
+
+    Add vercel.json to fix build output directory
+
+[33mcommit 75b188d15a00b3306cc53db023bc18fa87de3bd2[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Thu Sep 24 10:49:56 2026 +0100
+
+    Fix users urls.py and add create-demo-admin endpoint
+
+[33mcommit 7cf72ded0d6a828ca95f24d4ad3f23990d1428bb[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Thu Sep 24 10:33:13 2026 +0100
+
+    Add temporary demo admin creation endpoint
+
+[33mcommit c563466a77b1aac28bbb7b2d2ebe2a36eb8522fc[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Tue Sep 22 08:34:56 2026 +0100
+
+    testing deployment
+
+[33mcommit 342edc52d282b1d72bec753a43aab2ce8e25c3f8[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Tue Sep 22 03:37:23 2026 +0100
+
+    Add trained ML models (RF, XGBoost, Scaler, Feature Names) to repository
+
+[33mcommit e039694fbb21a8486759655c6545ae87351890dd[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Tue Sep 22 03:27:37 2026 +0100
+
+    Prepare backend for production hosting (WhiteNoise, CORS, env vars)
+
+[33mcommit b3ca3b2d719f80f0eae62e5027b07548c60ac347[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Tue Sep 22 03:09:12 2026 +0100
+
+    second commit
+
+[33mcommit 588f1abbf2fe0486ab537f39a3b82959ecfef58c[m
+Author: AKPAN-THANKGOD <t.j.910071@gmail.com>
+Date:   Sat Sep 19 17:08:18 2026 +0100
+
+    first commit
