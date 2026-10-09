@@ -5,4 +5,10 @@ class UsersConfig(AppConfig):
     name = 'apps.users'
     label = 'users'
     verbose_name = 'Users'
+
     
+    def ready(self):
+        # Import signals to ensure they are connected
+        import apps.users.signals  # noqa
+    
+

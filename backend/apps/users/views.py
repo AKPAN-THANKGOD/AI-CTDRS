@@ -6,7 +6,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
-# 👇 FIX: Removed 'ROLES' from this import line
 from .serializers import (
     RegisterSerializer, 
     LoginSerializer, 
@@ -116,20 +115,3 @@ class UserManagementViewSet(viewsets.ModelViewSet):
             user.save()
             return Response(UserListSerializer(user).data)
         return Response({'error': 'Only role can be updated'}, status=status.HTTP_400_BAD_REQUEST)
-
-
-from rest_framework.decorators import api_view, permission_classes
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def create_demo_admin(request):
-    if not User.objects.filter(email='admin@ctdrs.com').exists():
-        User.objects.create_superuser(
-            email='admin@ctdrs.com',
-            username='admin',
-            password='Admin123!',
-            full_name='System Admin',
-            role='admin'
-        )
-        return Response({"message": "✅ Demo admin created successfully!"})
-    return Response({"message": "ℹ️ Admin already exists."})
