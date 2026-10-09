@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://ai-ctdrs.onrender.com/api';
+// 🔧 CRITICAL: Ensure this matches your ACTUAL live Render URL.
+// Your logs showed the new URL is: https://ai-ctdrs-lo9k.onrender.com
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://ai-ctdrs-lo9k.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -65,7 +67,7 @@ export const authService = {
     password: string;
     full_name: string;
     role: string;
-    password_confirm: string; // Required to match backend
+    password_confirm: string;
   }) => {
     return api.post('/auth/register/', data);
   },
