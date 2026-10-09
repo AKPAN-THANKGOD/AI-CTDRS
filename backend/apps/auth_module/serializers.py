@@ -31,10 +31,41 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    Custom JWT serializer that uses EMAIL instead of USERNAME for login.
+    """
+    
+    # 👇 CRITICAL: Tell JWT to use email field
+    username_field = 'email'
+    
+    default_error_messages = {
+        'no_active_account': 'Invalid email or password'
+    }
+    
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
+        # Add custom claims
         token['email'] = user.email
         token['role'] = user.role
         token['full_name'] = user.full_name
         return token
+    
+    def validate(self, attrs):
+        # 👇 CRITICAL: Map 'email' to 'username' for parent class authentication
+        email = attrs.get('email')
+        password = attrs.get('password')
+        
+        if email and password:
+            user = User.objects.filter(email=email).first()
+            
+            if user and user.check_password(password):
+                if not user.is_active:
+                    raise serializers.ValidationError('Account is disabled')
+                
+                # Set username for parent class
+                attrs['username'] = user.username
+                self.user = user
+                return super().validate(attrs)
+        
+        raise serializers.ValidationError('Invalid email or password')
