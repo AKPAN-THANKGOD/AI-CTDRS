@@ -1,7 +1,11 @@
+// LOCATION: frontend/src/services/api.ts
 import axios from 'axios';
 
 // 🔧 IMPORTANT: Replace this with YOUR actual Render URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://ai-ctdrs.onrender.com/api';
+// Dev: local Django. Prod: VITE_API_URL (set it in Netlify), falling back to the old URL.
+const API_BASE_URL: string = import.meta.env.DEV
+  ? (import.meta.env.VITE_API_URL || 'http://localhost:8000/api')
+  : (import.meta.env.VITE_API_URL || 'https://ai-ctdrs.onrender.com/api');
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -52,6 +56,13 @@ api.interceptors.response.use(
           return Promise.reject(refreshError);
         }
       }
+    }
+
+    if (error.response?.status === 401 && !localStorage.getItem('refresh_token')
+        && !originalRequest.url?.includes('/auth/login/')) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
     }
 
     return Promise.reject(error);
@@ -106,7 +117,7 @@ export const threatsService = {
     return api.post('/threats/analyze/', data);
   },
 
-  respond: (id: string, data: { action: string; notes: string }) => {
+  respond: (id: string, data: { action_taken: string; notes: string; severity_assessment?: string }) => {
     return api.post(`/threats/${id}/respond/`, data);
   },
 
@@ -145,8 +156,8 @@ export const incidentsService = {
     return api.post(`/incidents/${id}/resolve/`, data);
   },
 
-  exportPDF: (id: string) => {
-    return api.get(`/incidents/${id}/export_pdf/`, { responseType: 'blob' });
+  exportPDF: () => {
+    return api.get('/incidents/export_pdf/', { responseType: 'blob' });
   },
 };
 

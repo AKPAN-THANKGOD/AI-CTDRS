@@ -1,3 +1,4 @@
+// LOCATION: frontend/src/App.tsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
@@ -9,7 +10,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 import UserManagement from './pages/UserManagement';
-import { useThreatWebSocket } from './hooks/useThreatWebSocket';
+import { useThreatWebSocket, ThreatSocketProvider } from './hooks/useThreatWebSocket';
 import { useAuth } from './hooks/useAuth';
 import Settings from './pages/Settings';
 
@@ -41,9 +42,6 @@ function GlobalThreatNotification() {
 function App() {
   const { user, isAdmin } = useAuth();
 
-  console.log("🔍 Current user:", user);
-  console.log("🔍 Is admin:", isAdmin);
-
   return (
     <Router>
       <Routes>
@@ -54,6 +52,7 @@ function App() {
           path="/*"
           element={
             <ProtectedRoute>
+              <ThreatSocketProvider>
               <div className="min-h-screen bg-gray-950 flex">
                 <aside className="w-64 bg-gray-900 border-r border-gray-800 p-6 hidden md:block">
                   <h1 className="text-xl font-bold text-white mb-8">🛡️ AI-CTDRS</h1>
@@ -116,6 +115,7 @@ function App() {
                   </Routes>
                 </main>
               </div>
+            </ThreatSocketProvider>
             </ProtectedRoute>
           }
         />

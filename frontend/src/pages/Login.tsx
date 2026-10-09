@@ -1,5 +1,6 @@
+// LOCATION: frontend/src/pages/Login.tsx
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { authService } from '../services/api';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -7,7 +8,6 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,9 +86,6 @@ export default function Login() {
         </form>
 
         <div className="mt-6 text-center space-y-2">
-          <p className="text-gray-500 text-xs">
-            Default credentials: admin@ctdrs.com / Admin123!
-          </p>
           <p className="text-gray-400 text-sm">
             Don't have an account?{' '}
             <Link to="/register" className="text-blue-400 hover:text-blue-300 font-medium">

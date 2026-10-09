@@ -1,38 +1,15 @@
+// LOCATION: frontend/vite.config.ts  (replaces your old vite_config.ts)
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// https://vitejs.dev/config/
+// API calls go straight to VITE_API_URL (see src/services/api.ts), so no dev proxy is needed.
 export default defineConfig({
-  base:'/',
+  base: '/',
   plugins: [react()],
-  server: {
-    port: 3000,
-    strictPort: true,
-    
-    // Proxy API requests to backend during development
-    proxy: {
-      // Proxy /api requests to your Render backend
-      '/api': {
-        target: 'https://ai-ctdrs-backend.onrender.com', // 🔧 Replace with YOUR Render URL
-        changeOrigin: true,
-        secure: true,
-        // Remove this if you don't want to rewrite the path
-        // rewrite: (path) => path.replace(/^\/api/, ''),
-      },
-      
-      // Proxy WebSocket connections for real-time notifications
-      '/ws': {
-        target: 'wss://ai-ctdrs-backend.onrender.com', // 🔧 Replace with YOUR Render URL (wss:// for HTTPS)
-        ws: true,
-        changeOrigin: true,
-        secure: true,
-      },
-    },
-  },
+  server: { port: 3000, strictPort: true },
   build: {
     outDir: 'dist',
     sourcemap: false,
-    // Optimize bundle size
     rollupOptions: {
       output: {
         manualChunks: {

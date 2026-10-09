@@ -1,99 +1,83 @@
+# LOCATION: backend/apps/analytics/views.py
+from datetime import datetime, time, timedelta
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Count, Q
+from django.db.models import Count, Avg, F, ExpressionWrapper, DurationField
 from django.db.models.functions import TruncDate
 from django.utils import timezone
-from datetime import timedelta
 
 from apps.threats.models import Threat
 from apps.incidents.models import Incident
 from apps.alerts.models import Alert
-from django.contrib.auth import get_user_model
 
-User = get_user_model()
+WINDOW_DAYS = 30
+
+
+def _fmt_duration(td):
+    if td is None:
+        return "N/A"
+    secs = int(td.total_seconds())
+    if secs < 60:
+        return f"{secs} secs"
+    if secs < 3600:
+        return f"{secs / 60:.1f} mins"
+    if secs < 86400:
+        return f"{secs / 3600:.1f} hrs"
+    return f"{secs / 86400:.1f} days"
 
 
 class DashboardAnalyticsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        now = timezone.now()
-        thirty_days_ago = now - timedelta(days=30)
+        today = timezone.localdate()
+        first_day = today - timedelta(days=WINDOW_DAYS - 1)      # window INCLUDES today
+        start = timezone.make_aware(datetime.combine(first_day, time.min))
 
-        # 1. Threat Trends (Last 30 Days)
-        threat_trends = (
-            Threat.objects.filter(detected_at__gte=thirty_days_ago)
-            .annotate(date=TruncDate('detected_at'))
-            .values('date')
-            .annotate(count=Count('id'))
-            .order_by('date')
-        )
-        
-        # Format for frontend chart (ensure all 30 days have a value, even 0)
-        dates = [(thirty_days_ago + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(30)]
-        trend_data = {date: 0 for date in dates}
-        for item in threat_trends:
-            date_str = item['date'].strftime('%Y-%m-%d')
-            if date_str in trend_data:
-                trend_data[date_str] = item['count']
-        
-        threat_trends_formatted = [
-            {'date': date, 'count': count} for date, count in trend_data.items()
-        ]
+        in_window = Threat.objects.filter(detected_at__gte=start)
 
-        # 2. Top Attacking IPs
-        top_ips = (
-            Threat.objects.filter(detected_at__gte=thirty_days_ago)
-            .values('source_ip')
-            .annotate(count=Count('id'))
-            .order_by('-count')[:10]
-        )
+        # 1. Trend: every day of the window, zero-filled
+        counts = {r['date']: r['count'] for r in
+                  in_window.annotate(date=TruncDate('detected_at')).values('date').annotate(count=Count('id'))}
+        trends = [{'date': (first_day + timedelta(days=i)).isoformat(),
+                   'count': counts.get(first_day + timedelta(days=i), 0)}
+                  for i in range(WINDOW_DAYS)]
 
-        # 3. Severity Distribution
-        severity_dist = (
-            Threat.objects.filter(detected_at__gte=thirty_days_ago)
-            .values('severity')
-            .annotate(count=Count('id'))
-        )
-        severity_map = {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}
-        for item in severity_dist:
-            if item['severity'] in severity_map:
-                severity_map[item['severity']] = item['count']
+        # 2. Top source IPs
+        top_ips = list(in_window.values('source_ip').annotate(count=Count('id')).order_by('-count')[:10])
 
-        # 4. Analyst Performance (Incidents resolved per user)
-        incident_performance = (
-            Incident.objects.filter(resolved_at__gte=thirty_days_ago, status='resolved')
-            .values('assigned_to__full_name', 'assigned_to__email')
-            .annotate(resolved_count=Count('id'))
-            .order_by('-resolved_count')[:5]
-        )
+        # 3. Severity distribution
+        sev = {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}
+        for r in in_window.values('severity').annotate(count=Count('id')):
+            if r['severity'] in sev:
+                sev[r['severity']] = r['count']
 
-        # 5. Summary Metrics
-        total_threats = Threat.objects.count()
-        critical_threats = Threat.objects.filter(severity='critical').count()
-        open_incidents = Incident.objects.filter(status='open').count()
-        pending_alerts = Alert.objects.filter(status='pending').count()
-        
-        # Average response time (mocked calculation for demo, or real if you track it)
-        avg_response_time = "12.5 mins" 
+        # 4. Analyst performance (resolved incidents per assignee)
+        perf = (Incident.objects.filter(status='resolved', resolved_at__gte=start)
+                .values('assigned_to__full_name', 'assigned_to__email')
+                .annotate(resolved_count=Count('id')).order_by('-resolved_count')[:5])
+
+        # 5. Real mean time to respond: detected_at -> responded_at
+        avg_td = (Threat.objects.filter(responded_at__isnull=False)
+                  .annotate(delta=ExpressionWrapper(F('responded_at') - F('detected_at'),
+                                                    output_field=DurationField()))
+                  .aggregate(avg=Avg('delta'))['avg'])
 
         return Response({
             'summary': {
-                'total_threats': total_threats,
-                'critical_threats': critical_threats,
-                'open_incidents': open_incidents,
-                'pending_alerts': pending_alerts,
-                'avg_response_time': avg_response_time,
+                'total_threats': Threat.objects.count(),
+                'critical_threats': Threat.objects.filter(severity='critical').count(),
+                'open_incidents': Incident.objects.filter(status__in=['open', 'in_progress']).count(),
+                'pending_alerts': Alert.objects.filter(status='pending').count(),
+                'avg_response_time': _fmt_duration(avg_td),
             },
-            'threat_trends': threat_trends_formatted,
-            'top_ips': list(top_ips),
-            'severity_distribution': severity_map,
-            'analyst_performance': [
-                {
-                    'name': item['assigned_to__full_name'] or item['assigned_to__email'] or 'Unassigned',
-                    'resolved': item['resolved_count']
-                }
-                for item in incident_performance
-            ]
+            'threat_trends': trends,
+            'top_ips': top_ips,
+            'severity_distribution': sev,
+            'analyst_performance': [{
+                'name': r['assigned_to__full_name'] or r['assigned_to__email'] or 'Unassigned',
+                'resolved': r['resolved_count'],
+            } for r in perf],
         })

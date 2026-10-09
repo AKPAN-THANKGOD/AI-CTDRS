@@ -1,16 +1,15 @@
+// LOCATION: frontend/src/pages/Register.tsx
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { authService } from '../services/api'; // 👈 CHANGED: authService instead of userService
 import toast, { Toaster } from 'react-hot-toast';
 
 export default function Register() {
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState('analyst');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,8 +31,6 @@ export default function Register() {
         email,
         full_name: fullName,
         password,
-        role,
-        // Add password_confirm just in case your backend serializer requires it
         password_confirm: passwordConfirm 
       });
       
@@ -43,7 +40,7 @@ export default function Register() {
       localStorage.setItem('user', JSON.stringify(response.data.user));
       
       toast.success('Account created successfully!');
-      navigate('/dashboard');
+      window.location.href = '/';
     } catch (error: any) {
       // This will print the exact backend error to the console
       console.error("🔴 Registration Error Details:", error);
@@ -96,18 +93,6 @@ export default function Register() {
               placeholder="analyst@ctdrs.com"
               required
             />
-          </div>
-
-          <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2">Role</label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
-            >
-              <option value="analyst">Security Analyst</option>
-              <option value="admin">Administrator</option>
-            </select>
           </div>
 
           <div>

@@ -1,3 +1,4 @@
+// LOCATION: frontend/src/pages/Profile.tsx
 import React, { useEffect, useState } from 'react';
 import { authService } from '../services/api'; // ✅ FIXED: Changed from userService to authService
 import toast, { Toaster } from 'react-hot-toast';
@@ -16,7 +17,6 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState('analyst');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const fetchProfile = async () => {
@@ -25,7 +25,6 @@ export default function Profile() {
       const res = await authService.getProfile();
       setProfile(res.data);
       setFullName(res.data.full_name);
-      setRole(res.data.role);
     } catch {
       toast.error("Failed to load profile");
     } finally {
@@ -37,7 +36,7 @@ export default function Profile() {
     e.preventDefault();
     try {
       // ✅ FIXED: Changed from userService.updateProfile() to authService.updateProfile()
-      const res = await authService.updateProfile({ full_name: fullName, role });
+      const res = await authService.updateProfile({ full_name: fullName });
       setProfile(res.data);
       setEditing(false);
       toast.success("Profile updated");
@@ -130,24 +129,13 @@ export default function Profile() {
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-500 cursor-not-allowed"
                 />
               </div>
-              <div>
-                <label className="block text-gray-300 text-sm mb-2">Role</label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                >
-                  <option value="analyst">Security Analyst</option>
-                  <option value="admin">Administrator</option>
-                </select>
-              </div>
               <div className="flex gap-3 pt-4">
                 <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">
                   Save Changes
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setEditing(false); setFullName(profile.full_name); setRole(profile.role); }}
+                  onClick={() => { setEditing(false); setFullName(profile.full_name); }}
                   className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium"
                 >
                   Cancel
@@ -212,6 +200,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
       setTimeout(() => {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
         window.location.href = '/login';
       }, 1500);
     } catch (error: any) {

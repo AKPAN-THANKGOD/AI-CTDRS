@@ -1,1 +1,1 @@
-default_app_config = 'apps.users.apps.UsersConfig'
+# LOCATION: backend/apps/users/__init__.py  (this file should contain nothing else)

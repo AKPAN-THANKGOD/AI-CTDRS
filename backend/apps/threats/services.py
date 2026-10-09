@@ -1,183 +1,167 @@
-import numpy as np
-import joblib
-import time
-from django.conf import settings as django_settings
+# LOCATION: backend/apps/threats/services.py
+"""
+Threat detection service (fixed).
+
+Matches the models actually trained by train_real_models.py:
+  - BINARY classifiers (0 = benign, 1 = malicious), 77 CICIDS2017 flow features
+  - MinMaxScaler fitted on those 77 features
+  - Ensemble weights 0.45 (RF) / 0.55 (XGB), as used in evaluate_models.py
+
+Fixes vs. the old version:
+  * unspecified features are filled with the TRAINING MEDIAN, not 0
+  * values are scaled per-feature and clipped to the training range
+  * real SHAP (TreeExplainer on the Random Forest) and real LIME
+  * unknown feature names are reported instead of silently ignored
+"""
 import os
+import time
+import threading
+
+import joblib
+import numpy as np
+from django.conf import settings as django_settings
+
+RF_WEIGHT, XGB_WEIGHT = 0.45, 0.55
+TOP_N = 5
 
 
 class ThreatDetectionService:
-    """AI-powered threat detection using ensemble ML models"""
-    
-    _models_loaded = False
-    _rf_model = None
-    _xgb_model = None
-    _scaler = None
-    _feature_names = None
-    
+    _lock = threading.Lock()
+    _loaded = False
+    _rf = _xgb = _scaler = _feature_names = None
+    _lime_sample = _scaled_median = _range = _shap = _lime = None
+
+    # ------------------------------------------------------------------ load
     @classmethod
-    def _load_models(cls):
-        if cls._models_loaded:
+    def _load(cls):
+        if cls._loaded:
             return
-        
-        model_dir = os.path.join(django_settings.BASE_DIR, 'ml_models')
-        
-        try:
-            cls._rf_model = joblib.load(os.path.join(model_dir, 'random_forest.pkl'))
-            cls._xgb_model = joblib.load(os.path.join(model_dir, 'xgboost.pkl'))
-            cls._scaler = joblib.load(os.path.join(model_dir, 'scaler.pkl'))
-            
-            # Load feature names (matching your training script output)
-            cls._feature_names = joblib.load(os.path.join(model_dir, 'feature_names.pkl'))
-            
-            cls._models_loaded = True
-            print(f"✅ All models loaded. Features: {len(cls._feature_names)}")
-        except Exception as e:
-            print(f"❌ Failed to load models: {e}")
-            raise
-    
+        with cls._lock:
+            if cls._loaded:
+                return
+            d = os.path.join(django_settings.BASE_DIR, 'ml_models')
+            cls._rf = joblib.load(os.path.join(d, 'random_forest.pkl'))
+            cls._xgb = joblib.load(os.path.join(d, 'xgboost.pkl'))
+            cls._scaler = joblib.load(os.path.join(d, 'scaler.pkl'))
+            cls._feature_names = list(joblib.load(os.path.join(d, 'feature_names.pkl')))
+            cls._lime_sample = joblib.load(os.path.join(d, 'lime_training_sample.pkl'))
+
+            sc = cls._scaler
+            cls._range = np.where((sc.data_max_ - sc.data_min_) == 0, 1.0,
+                                  sc.data_max_ - sc.data_min_)
+            # median of the (already scaled) background sample = "typical" row
+            cls._scaled_median = np.median(cls._lime_sample, axis=0)
+
+            import shap
+            cls._shap = shap.TreeExplainer(cls._rf)
+
+            from lime.lime_tabular import LimeTabularExplainer
+            cls._lime = LimeTabularExplainer(
+                cls._lime_sample,
+                feature_names=cls._feature_names,
+                class_names=['Benign', 'Malicious'],
+                mode='classification',
+                discretize_continuous=False,
+            )
+            cls._loaded = True
+
+    # --------------------------------------------------------------- helpers
     @classmethod
-    def predict(cls, features: dict) -> dict:
-        """
-        Predict threat using ensemble of RF + XGBoost.
-        Uses configurable thresholds from SystemSettings.
-        """
-        start_time = time.time()
-        
-        cls._load_models()
-        
-        # Prepare feature vector
-        feature_vector = []
-        for fname in cls._feature_names:
-            feature_vector.append(float(features.get(fname, 0)))
-        
-        X = np.array([feature_vector])
-        
-        # Scale features
-        X_scaled = cls._scaler.transform(X)
-        
-        # Get predictions from both models
-        rf_pred = cls._rf_model.predict(X_scaled)[0]
-        rf_proba = cls._rf_model.predict_proba(X_scaled)[0]
-        
-        xgb_pred = cls._xgb_model.predict(X_scaled)[0]
-        xgb_proba = cls._xgb_model.predict_proba(X_scaled)[0]
-        
-        # Ensemble: average probabilities
-        ensemble_proba = (rf_proba + xgb_proba) / 2
-        threat_proba = float(ensemble_proba[1])  # Probability of being a threat
-        
-        # 🔧 LOAD CONFIGURABLE THRESHOLDS FROM SETTINGS
+    def feature_names(cls):
+        cls._load()
+        return list(cls._feature_names)
+
+    @classmethod
+    def _build_vector(cls, features: dict):
+        """Return (scaled_vector[1,77], raw_vector[77], unknown_keys, n_provided)."""
+        names = cls._feature_names
+        idx = {n: i for i, n in enumerate(names)}
+        unknown = [k for k in features if k not in idx]
+        scaled = cls._scaled_median.copy()
+        raw = cls._scaler.inverse_transform(scaled.reshape(1, -1))[0]
+        provided = 0
+        for k, v in features.items():
+            i = idx.get(k)
+            if i is None:
+                continue
+            v = float(v)
+            raw[i] = v
+            scaled[i] = np.clip((v - cls._scaler.data_min_[i]) / cls._range[i], 0.0, 1.0)
+            provided += 1
+        return scaled.reshape(1, -1), raw, unknown, provided
+
+    @classmethod
+    def _ensemble_proba(cls, X):
+        return RF_WEIGHT * cls._rf.predict_proba(X) + XGB_WEIGHT * cls._xgb.predict_proba(X)
+
+    # --------------------------------------------------------------- predict
+    @classmethod
+    def predict(cls, features: dict, explain: bool = True) -> dict:
+        t0 = time.time()
+        cls._load()
+        X, raw, unknown, provided = cls._build_vector(features)
+
+        proba = cls._ensemble_proba(X)[0]
+        p_attack = float(proba[1])
+
         from apps.settings.models import SystemSettings
-        settings = SystemSettings.load()
-        
-        # Determine if it's a threat based on configurable threshold
-        is_threat = threat_proba >= settings.confidence_threshold
-        
-        # Determine severity based on configurable thresholds
-        if threat_proba >= settings.critical_threshold:
+        cfg = SystemSettings.load()
+        is_threat = p_attack >= cfg.confidence_threshold
+        if p_attack >= cfg.critical_threshold:
             severity = 'critical'
-        elif threat_proba >= settings.high_threshold:
+        elif p_attack >= cfg.high_threshold:
             severity = 'high'
-        elif threat_proba >= settings.medium_threshold:
+        elif p_attack >= cfg.medium_threshold:
             severity = 'medium'
         else:
             severity = 'low'
-        
-        # Determine threat type based on features
-        threat_type = cls._classify_threat_type(features, threat_proba)
-        
-        # Calculate response time
-        response_time_ms = (time.time() - start_time) * 1000
-        
-        # Generate SHAP explanation (simplified)
-        shap_explanation = cls._generate_shap_explanation(features, cls._feature_names)
-        
-        # Generate LIME explanation
-        lime_explanation = cls._generate_lime_explanation(features, cls._feature_names)
-        
-        return {
+
+        result = {
             'is_threat': is_threat,
-            'threat_type': threat_type if is_threat else 'Benign Traffic',
+            # The trained model is binary: it cannot name the attack family.
+            'threat_type': 'Malicious Traffic' if is_threat else 'Benign Traffic',
             'severity': severity if is_threat else 'low',
-            'confidence': threat_proba,
-            'rf_prediction': int(rf_pred),
-            'xgb_prediction': int(xgb_pred),
-            'rf_confidence': float(rf_proba[1]),
-            'xgb_confidence': float(xgb_proba[1]),
-            'response_time_ms': response_time_ms,
-            'shap_explanation': shap_explanation,
-            'lime_explanation': lime_explanation,
-            'threshold_used': settings.confidence_threshold,
+            'confidence': p_attack if is_threat else float(proba[0]),
+            'attack_probability': p_attack,
+            'rf_confidence': float(cls._rf.predict_proba(X)[0][1]),
+            'xgb_confidence': float(cls._xgb.predict_proba(X)[0][1]),
+            'threshold_used': cfg.confidence_threshold,
+            'features_provided': provided,
+            'features_total': len(cls._feature_names),
+            'unknown_features': unknown,
+            'shap_explanation': [],
+            'lime_explanation': [],
         }
-    
+        if provided < len(cls._feature_names) * 0.5:
+            result['warning'] = (
+                f"Only {provided}/{len(cls._feature_names)} features supplied; "
+                "the rest were filled with training medians. Use a full flow record "
+                "for a reliable result."
+            )
+        if explain:
+            result['shap_explanation'] = cls._shap_explain(X, raw)
+            result['lime_explanation'] = cls._lime_explain(X[0])
+        result['response_time_ms'] = (time.time() - t0) * 1000
+        return result
+
+    # ------------------------------------------------------------ explainers
     @classmethod
-    def _classify_threat_type(cls, features: dict, confidence: float) -> str:
-        """Classify threat type based on feature patterns"""
-        syn_count = float(features.get('SYN Flag Count', 0))
-        flow_packets = float(features.get('Flow Packets/s', 0))
-        fwd_packets = float(features.get('Total Fwd Packets', 0))
-        bwd_packets = float(features.get('Total Backward Packets', 0))
-        flow_duration = float(features.get('Flow Duration', 0))
-        
-        # DDoS / SYN Flood
-        if syn_count > 10000 and flow_packets > 100000:
-            return 'DDoS / SYN Flood'
-        
-        # Port Scan
-        if flow_duration < 100 and fwd_packets > 1000 and bwd_packets < 100:
-            return 'Port Scan'
-        
-        # Brute Force
-        if fwd_packets > 5000 and bwd_packets > 5000 and flow_duration > 1000:
-            return 'Brute Force Attempt'
-        
-        # SQL Injection indicators
-        if flow_packets > 1000 and syn_count < 100:
-            return 'SQL Injection Attempt'
-        
-        # Default
-        return 'Malicious Traffic'
-    
+    def _shap_explain(cls, X, raw):
+        sv = cls._shap.shap_values(X)
+        # shap versions return list[class] of (n,f), or array (n,f,classes), or (n,f)
+        if isinstance(sv, list):
+            vals = np.asarray(sv[1])[0]
+        else:
+            sv = np.asarray(sv)
+            vals = sv[0, :, 1] if sv.ndim == 3 else sv[0]
+        top = np.argsort(np.abs(vals))[::-1][:TOP_N]
+        return [{'feature': cls._feature_names[i],
+                 'shap_value': round(float(vals[i]), 4),
+                 'input_value': float(raw[i])} for i in top]
+
     @classmethod
-    def _generate_shap_explanation(cls, features: dict, feature_names: list) -> list:
-        """Generate simplified SHAP-like explanations"""
-        top_features = [
-            'SYN Flag Count', 'Flow Packets/s', 'Total Fwd Packets',
-            'Flow Duration', 'Total Backward Packets', 'Flow Bytes/s'
-        ]
-        
-        explanations = []
-        for fname in top_features:
-            value = float(features.get(fname, 0))
-            if value > 0:
-                # Simplified SHAP value calculation
-                shap_val = min(value / 10000, 3.0) if value > 1000 else value / 1000
-                explanations.append({
-                    'feature': fname,
-                    'shap_value': round(shap_val, 3),
-                    'input_value': value
-                })
-        
-        # Sort by absolute SHAP value
-        explanations.sort(key=lambda x: abs(x['shap_value']), reverse=True)
-        return explanations[:5]
-    
-    @classmethod
-    def _generate_lime_explanation(cls, features: dict, feature_names: list) -> list:
-        """Generate simplified LIME-like explanations"""
-        top_features = [
-            ('SYN Flag Count > 1000', float(features.get('SYN Flag Count', 0)) > 1000),
-            ('Flow Packets/s > 10000', float(features.get('Flow Packets/s', 0)) > 10000),
-            ('Flow Duration < 100', float(features.get('Flow Duration', 1000)) < 100),
-            ('Total Fwd Packets > 5000', float(features.get('Total Fwd Packets', 0)) > 5000),
-        ]
-        
-        explanations = []
-        for condition, met in top_features:
-            if met:
-                explanations.append({
-                    'feature': condition,
-                    'lime_weight': 0.8 if 'SYN' in condition else 0.6
-                })
-        
-        return explanations[:4]
+    def _lime_explain(cls, x):
+        exp = cls._lime.explain_instance(
+            x, cls._ensemble_proba, num_features=TOP_N, labels=[1], num_samples=1000)
+        return [{'feature': f, 'lime_weight': round(float(w), 4)}
+                for f, w in exp.as_list(label=1)[:TOP_N]]
