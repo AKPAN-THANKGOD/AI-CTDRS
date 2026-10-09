@@ -1,11 +1,6 @@
-// LOCATION: frontend/src/services/api.ts
 import axios from 'axios';
 
-// 🔧 IMPORTANT: Replace this with YOUR actual Render URL
-// Dev: local Django. Prod: VITE_API_URL (set it in Netlify), falling back to the old URL.
-const API_BASE_URL: string = import.meta.env.DEV
-  ? (import.meta.env.VITE_API_URL || 'http://localhost:8000/api')
-  : (import.meta.env.VITE_API_URL || 'https://ai-ctdrs.onrender.com/api');
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://ai-ctdrs.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -14,7 +9,6 @@ const api = axios.create({
   },
 });
 
-// Request interceptor: Add JWT token to every request
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
@@ -28,7 +22,6 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor: Handle token refresh and errors
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -58,18 +51,10 @@ api.interceptors.response.use(
       }
     }
 
-    if (error.response?.status === 401 && !localStorage.getItem('refresh_token')
-        && !originalRequest.url?.includes('/auth/login/')) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    }
-
     return Promise.reject(error);
   }
 );
 
-// Auth service
 export const authService = {
   login: (email: string, password: string) => {
     return api.post('/auth/login/', { email, password });
@@ -80,7 +65,7 @@ export const authService = {
     password: string;
     full_name: string;
     role: string;
-    password_confirm?: string; 
+    password_confirm: string; // Required to match backend
   }) => {
     return api.post('/auth/register/', data);
   },
@@ -102,126 +87,48 @@ export const authService = {
   },
 };
 
-// Threats service
 export const threatsService = {
-  getAll: (params?: any) => {
-    return api.get('/threats/', { params });
-  },
-
-  getOne: (id: string) => {
-    return api.get(`/threats/${id}/`);
-  },
-
-  // ✅ FIX: Send data exactly as the component formats it (no extra wrapping)
-  analyze: (data: any) => {
-    return api.post('/threats/analyze/', data);
-  },
-
-  respond: (id: string, data: { action_taken: string; notes: string; severity_assessment?: string }) => {
-    return api.post(`/threats/${id}/respond/`, data);
-  },
-
-  resolve: (id: string) => {
-    return api.patch(`/threats/${id}/resolve/`);
-  },
-
-  dismiss: (id: string) => {
-    return api.delete(`/threats/${id}/dismiss/`);
-  },
-
-  exportCSV: () => {
-    return api.get('/threats/export_csv/', { responseType: 'blob' });
-  },
+  getAll: (params?: any) => api.get('/threats/', { params }),
+  getOne: (id: string) => api.get(`/threats/${id}/`),
+  analyze: (data: any) => api.post('/threats/analyze/', data),
+  respond: (id: string, data: { action: string; notes: string }) => api.post(`/threats/${id}/respond/`, data),
+  resolve: (id: string) => api.patch(`/threats/${id}/resolve/`),
+  dismiss: (id: string) => api.delete(`/threats/${id}/dismiss/`),
+  exportCSV: () => api.get('/threats/export_csv/', { responseType: 'blob' }),
 };
 
-// Incidents service
 export const incidentsService = {
-  getAll: (params?: any) => {
-    return api.get('/incidents/', { params });
-  },
-
-  getOne: (id: string) => {
-    return api.get(`/incidents/${id}/`);
-  },
-
-  create: (data: any) => {
-    return api.post('/incidents/', data);
-  },
-
-  assign: (id: string) => {
-    return api.post(`/incidents/${id}/assign/`);
-  },
-
-  resolve: (id: string, data?: any) => {
-    return api.post(`/incidents/${id}/resolve/`, data);
-  },
-
-  exportPDF: () => {
-    return api.get('/incidents/export_pdf/', { responseType: 'blob' });
-  },
+  getAll: (params?: any) => api.get('/incidents/', { params }),
+  getOne: (id: string) => api.get(`/incidents/${id}/`),
+  create: (data: any) => api.post('/incidents/', data),
+  assign: (id: string) => api.post(`/incidents/${id}/assign/`),
+  resolve: (id: string, data?: any) => api.post(`/incidents/${id}/resolve/`, data),
+  exportPDF: (id: string) => api.get(`/incidents/${id}/export_pdf/`, { responseType: 'blob' }),
 };
 
-// Alerts service
 export const alertsService = {
-  getAll: (params?: any) => {
-    return api.get('/alerts/', { params });
-  },
-
-  acknowledge: (id: string) => {
-    return api.post(`/alerts/${id}/acknowledge/`);
-  },
-
-  acknowledgeAll: () => {
-    return api.post('/alerts/acknowledge_all/');
-  },
-
-  dismiss: (id: string) => {
-    return api.delete(`/alerts/${id}/dismiss/`);
-  },
+  getAll: (params?: any) => api.get('/alerts/', { params }),
+  acknowledge: (id: string) => api.post(`/alerts/${id}/acknowledge/`),
+  acknowledgeAll: () => api.post('/alerts/acknowledge_all/'),
+  dismiss: (id: string) => api.delete(`/alerts/${id}/dismiss/`),
 };
 
-// Analytics service
 export const analyticsService = {
-  getDashboard: () => {
-    return api.get('/analytics/dashboard/');
-  },
-
-  getEvaluation: () => {
-    return api.get('/analytics/evaluation/');
-  },
+  getDashboard: () => api.get('/analytics/dashboard/'),
+  getEvaluation: () => api.get('/analytics/evaluation/'),
 };
 
-// Settings service
 export const settingsService = {
-  get: () => {
-    return api.get('/settings/');
-  },
-
-  update: (data: any) => {
-    return api.patch('/settings/', data);
-  },
-
-  getHealth: () => {
-    return api.get('/settings/health/');
-  },
+  get: () => api.get('/settings/'),
+  update: (data: any) => api.patch('/settings/', data),
+  getHealth: () => api.get('/settings/health/'),
 };
 
-// User management service (Admin only)
 export const userService = {
-  getAll: (params?: any) => {
-    return api.get('/auth/management/', { params });
-  },
-
-  updateRole: (id: string, role: string) => {
-    return api.patch(`/auth/management/${id}/`, { role });
-  },
-
-  delete: (id: string) => {
-    return api.delete(`/auth/management/${id}/`);
-  },
+  getAll: (params?: any) => api.get('/auth/management/', { params }),
+  updateRole: (id: string, role: string) => api.patch(`/auth/management/${id}/`, { role }),
+  delete: (id: string) => api.delete(`/auth/management/${id}/`),
 };
 
 export default api;
-
-// Alias for backward compatibility
 export const threatService = threatsService;
