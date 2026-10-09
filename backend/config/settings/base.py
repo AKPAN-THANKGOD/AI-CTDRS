@@ -9,24 +9,27 @@ DEBUG = True
 ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
-    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
+    # Third-party apps
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
-    'django_filters',
     'channels',
-    'drf_spectacular',
-    'apps.auth_module',
+    
+    # Custom apps
+    'apps.auth',
+    'apps.users',        # 👈 ADD THIS LINE
     'apps.threats',
     'apps.incidents',
     'apps.alerts',
     'apps.analytics',
+    'apps.settings',
 ]
 
 MIDDLEWARE = [
