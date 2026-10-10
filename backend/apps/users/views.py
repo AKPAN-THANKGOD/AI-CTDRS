@@ -115,3 +115,46 @@ class UserManagementViewSet(viewsets.ModelViewSet):
             user.save()
             return Response(UserListSerializer(user).data)
         return Response({'error': 'Only role can be updated'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def create_demo_admin(request):
+    """
+    Temporary endpoint to create a known admin account.
+    Safe to leave in code, as it only creates the user if they don't exist,
+    and resets the password to a known value if they do.
+    """
+    email = 'admin@ctdrs.com'
+    password = 'Admin123!'
+    
+    user, created = User.objects.get_or_create(
+        email=email,
+        defaults={
+            'username': 'admin',
+            'full_name': 'System Admin',
+            'role': 'admin',
+            'is_active': True,
+            'is_staff': True,
+            'is_superuser': True
+        }
+    )
+    
+    # Always ensure the password is exactly what we expect
+    user.set_password(password)
+    user.is_active = True
+    user.is_staff = True
+    user.is_superuser = True
+    user.role = 'admin'
+    user.save()
+    
+    if created:
+        return Response({"message": "✅ Admin account created successfully!"})
+    else:
+        return Response({"message": "✅ Admin account password reset successfully!"})

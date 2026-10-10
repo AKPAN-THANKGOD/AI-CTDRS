@@ -13,6 +13,9 @@ urlpatterns = [
     path('profile/', views.ProfileView.as_view(), name='profile'),
     path('profile/change-password/', views.ChangePasswordView.as_view(), name='change-password'),
     
-    # Router URLs (handles /management/ and /management/<id>/)
+    # Router URLs
     path('', include(router.urls)),
+    
+    # 👇 TEMPORARY ADMIN CREATION ENDPOINT 👇
+    path('create-demo-admin/', views.create_demo_admin, name='create-demo-admin'),
 ]
