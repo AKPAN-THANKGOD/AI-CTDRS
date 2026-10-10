@@ -63,6 +63,7 @@ class ThreatViewSet(viewsets.ModelViewSet):
             'lime_explanation': list(prediction.get('lime_explanation', [])),
             'response_time_ms': float(prediction.get('response_time_ms', 0.0)),
             'recorded': False,
+            'test_marker': 'NEW_CODE_DEPLOYED_2026_10_10',  # ← THIS PROVES NEW CODE IS RUNNING
         }
 
         if not payload['is_threat']:
