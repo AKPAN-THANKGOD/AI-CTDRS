@@ -29,7 +29,6 @@ class ThreatDetectionService:
             if cls._loaded:
                 return
             
-            # Path to your multi-class CIC-IDS2017 models
             model_dir = os.path.join(django_settings.BASE_DIR, 'models', 'cicids2017')
             
             cls._ensemble = joblib.load(os.path.join(model_dir, 'ensemble_model.pkl'))
@@ -38,11 +37,9 @@ class ThreatDetectionService:
             cls._feature_names = list(joblib.load(os.path.join(model_dir, 'feature_names.pkl')))
             cls._lime_sample = joblib.load(os.path.join(model_dir, 'lime_training_sample.pkl'))
             
-            # SHAP Explainer (using the Random Forest estimator from the VotingClassifier)
             rf_model = cls._ensemble.estimators_[0]
             cls._shap_explainer = shap.TreeExplainer(rf_model)
             
-            # LIME Explainer
             cls._lime_explainer = LimeTabularExplainer(
                 cls._lime_sample,
                 feature_names=cls._feature_names,
@@ -58,7 +55,6 @@ class ThreatDetectionService:
         t0 = time.time()
         cls._load()
         
-        # 1. Build feature vector
         names = cls._feature_names
         idx = {n: i for i, n in enumerate(names)}
         unknown = [k for k in features if k not in idx]
@@ -72,48 +68,46 @@ class ThreatDetectionService:
                 raw_vector[i] = float(v)
                 provided += 1
         
-        # 2. Scale features
         X = cls._scaler.transform(raw_vector.reshape(1, -1))
         
-        # 3. Predict (Multi-class)
         prediction_idx = cls._ensemble.predict(X)[0]
         proba = cls._ensemble.predict_proba(X)[0]
         
-        # Get individual model confidences
         rf_proba = cls._ensemble.estimators_[0].predict_proba(X)[0]
         xgb_proba = cls._ensemble.estimators_[1].predict_proba(X)[0]
         
         threat_type = cls._label_encoder.inverse_transform([prediction_idx])[0]
         confidence = float(proba.max())
         
-        # 4. Determine severity and thresholds
+        # BULLETPROOF: Any threat_type that is NOT exactly "Benign" or "BENIGN" is a threat
+        is_threat = threat_type.strip().lower() not in ['benign', 'benign traffic', 'normal']
+        
         cfg = SystemSettings.load()
-        is_threat = threat_type.lower() not in ['benign', 'benign traffic']
         
         if not is_threat:
             severity = 'low'
         elif confidence >= cfg.critical_threshold or threat_type in ['DDoS', 'Botnet', 'Bot']:
             severity = 'critical'
-        elif confidence >= cfg.high_threshold or threat_type in ['PortScan', 'Brute Force', 'BruteForce', 'Web Attack', 'WebAttack']:
+        elif confidence >= cfg.high_threshold or threat_type in ['PortScan', 'Brute Force', 'BruteForce', 'Web Attack', 'WebAttack', 'SQL Injection', 'SQL Injection Attempt']:
             severity = 'high'
         elif confidence >= cfg.medium_threshold:
             severity = 'medium'
         else:
             severity = 'low'
 
-        # 5. Build the EXACT payload the frontend expects - NO missing fields
+        # GUARANTEE: Always return all fields the frontend needs
         result = {
-            'is_threat': is_threat,
-            'threat_type': threat_type,
-            'severity': severity,
-            'confidence': confidence,
-            'attack_probability': confidence if is_threat else 0.0,
+            'is_threat': bool(is_threat),  # Explicitly cast to bool
+            'threat_type': str(threat_type),
+            'severity': str(severity),
+            'confidence': float(confidence),
+            'attack_probability': float(confidence) if is_threat else 0.0,
             'rf_confidence': float(rf_proba.max()),
             'xgb_confidence': float(xgb_proba.max()),
             'threshold_used': float(cfg.confidence_threshold),
-            'features_provided': provided,
-            'features_total': len(cls._feature_names),
-            'unknown_features': unknown,
+            'features_provided': int(provided),
+            'features_total': int(len(cls._feature_names)),
+            'unknown_features': list(unknown),
             'shap_explanation': [],
             'lime_explanation': [],
         }
@@ -124,21 +118,17 @@ class ThreatDetectionService:
                 result['lime_explanation'] = cls._lime_explain(X[0])
             except Exception as e:
                 print(f"⚠️ Explainability error: {e}")
-                result['shap_explanation'] = []
-                result['lime_explanation'] = []
             
-        result['response_time_ms'] = (time.time() - t0) * 1000
+        result['response_time_ms'] = float((time.time() - t0) * 1000)
         return result
 
     @classmethod
     def _shap_explain(cls, X, raw):
         shap_values = cls._shap_explainer.shap_values(X)
         
-        # Get the predicted class index to extract the correct SHAP values
         pred_proba = cls._ensemble.predict_proba(X)[0]
         pred_class_idx = int(np.argmax(pred_proba))
         
-        # Handle multiclass SHAP output (list of arrays)
         if isinstance(shap_values, list):
             vals = np.array(shap_values[pred_class_idx])[0]
         else:
@@ -160,7 +150,6 @@ class ThreatDetectionService:
 
     @classmethod
     def _lime_explain(cls, x):
-        # Explain the predicted class
         pred_proba = cls._ensemble.predict_proba(x.reshape(1, -1))[0]
         pred_idx = int(np.argmax(pred_proba))
         

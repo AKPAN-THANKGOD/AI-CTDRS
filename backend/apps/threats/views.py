@@ -19,7 +19,6 @@ SEVERITIES = ('critical', 'high', 'medium', 'low')
 
 
 def _csv_safe(value):
-    """Stop spreadsheet formula injection (=, +, -, @ at the start of a cell)."""
     s = '' if value is None else str(value)
     return "'" + s if s[:1] in ('=', '+', '-', '@', '\t', '\r') else s
 
@@ -32,7 +31,6 @@ class ThreatViewSet(viewsets.ModelViewSet):
     ordering_fields = ['detected_at', 'severity', 'confidence']
 
     def get_permissions(self):
-        # Analysts analyze, respond and resolve. Raw create/edit/delete and dismiss: admin only.
         if self.action in ('create', 'update', 'partial_update', 'destroy', 'dismiss'):
             return [IsAuthenticated(), IsAdmin()]
         return [IsAuthenticated()]
@@ -46,61 +44,58 @@ class ThreatViewSet(viewsets.ModelViewSet):
         prediction = ThreatDetectionService.predict(data['features'])
         cfg = SystemSettings.load()
 
-        # BULLETPROOF: Build the FULL payload with every field the frontend expects
+        # GUARANTEE: Every field the frontend needs is present
         payload = {
-            'is_threat': prediction['is_threat'],
-            'threat_type': prediction['threat_type'],
-            'severity': prediction['severity'],
-            'confidence': prediction['confidence'],
-            'attack_probability': prediction.get('attack_probability', 
-                                                prediction['confidence'] if prediction['is_threat'] else 0.0),
-            'rf_confidence': prediction.get('rf_confidence', prediction['confidence']),
-            'xgb_confidence': prediction.get('xgb_confidence', prediction['confidence']),
-            'threshold_used': prediction.get('threshold_used', cfg.confidence_threshold),
-            'source_ip': data['src_ip'],
-            'destination_ip': data.get('dst_ip'),
-            'features_provided': prediction.get('features_provided', 0),
-            'features_total': prediction.get('features_total', 0),
-            'unknown_features': prediction.get('unknown_features', []),
-            'shap_explanation': prediction.get('shap_explanation', []),
-            'lime_explanation': prediction.get('lime_explanation', []),
-            'response_time_ms': prediction.get('response_time_ms', 0),
+            'is_threat': bool(prediction.get('is_threat', False)),
+            'threat_type': str(prediction.get('threat_type', 'Unknown')),
+            'severity': str(prediction.get('severity', 'low')),
+            'confidence': float(prediction.get('confidence', 0.0)),
+            'attack_probability': float(prediction.get('attack_probability', 0.0)),
+            'rf_confidence': float(prediction.get('rf_confidence', 0.0)),
+            'xgb_confidence': float(prediction.get('xgb_confidence', 0.0)),
+            'threshold_used': float(prediction.get('threshold_used', cfg.confidence_threshold)),
+            'source_ip': str(data.get('src_ip', '')),
+            'destination_ip': str(data.get('dst_ip', '')),
+            'features_provided': int(prediction.get('features_provided', 0)),
+            'features_total': int(prediction.get('features_total', 0)),
+            'unknown_features': list(prediction.get('unknown_features', [])),
+            'shap_explanation': list(prediction.get('shap_explanation', [])),
+            'lime_explanation': list(prediction.get('lime_explanation', [])),
+            'response_time_ms': float(prediction.get('response_time_ms', 0.0)),
             'recorded': False,
         }
 
-        # Benign traffic is returned but NOT stored as a threat
-        if not prediction['is_threat']:
+        if not payload['is_threat']:
             return Response(payload, status=status.HTTP_200_OK)
 
-        # Create threat record
         threat = Threat.objects.create(
-            threat_type=prediction['threat_type'],
-            severity=prediction['severity'],
-            source_ip=data['src_ip'],
-            destination_ip=data.get('dst_ip'),
-            confidence=prediction['confidence'],
+            threat_type=payload['threat_type'],
+            severity=payload['severity'],
+            source_ip=payload['source_ip'],
+            destination_ip=payload['destination_ip'],
+            confidence=payload['confidence'],
             raw_features=data['features'],
-            shap_explanation=prediction['shap_explanation'],
-            lime_explanation=prediction['lime_explanation'],
+            shap_explanation=payload['shap_explanation'],
+            lime_explanation=payload['lime_explanation'],
         )
         payload.update(recorded=True, id=str(threat.id), status=threat.status)
 
         if cfg.auto_create_alerts:
             Alert.objects.create(
-                title=f"{prediction['severity'].upper()}: {prediction['threat_type']} Detected",
-                message=(f"AI system detected {prediction['threat_type']} from {data['src_ip']} "
-                         f"with {prediction['confidence'] * 100:.1f}% confidence."),
-                severity=prediction['severity'], status='pending', threat=threat,
+                title=f"{payload['severity'].upper()}: {payload['threat_type']} Detected",
+                message=(f"AI system detected {payload['threat_type']} from {payload['source_ip']} "
+                         f"with {payload['confidence'] * 100:.1f}% confidence."),
+                severity=payload['severity'], status='pending', threat=threat,
             )
         if cfg.auto_create_incidents:
             Incident.objects.create(
-                title=f"{prediction['threat_type']} - {data['src_ip']}",
+                title=f"{payload['threat_type']} - {payload['source_ip']}",
                 description=(f"Automated incident from AI detection.\n\nThreat ID: {threat.id}\n"
-                             f"Source IP: {data['src_ip']}\n"
-                             f"Destination IP: {data.get('dst_ip') or 'N/A'}\n"
-                             f"Confidence: {prediction['confidence'] * 100:.1f}%\n"
-                             f"Severity: {prediction['severity']}"),
-                severity=prediction['severity'], status='open',
+                             f"Source IP: {payload['source_ip']}\n"
+                             f"Destination IP: {payload['destination_ip'] or 'N/A'}\n"
+                             f"Confidence: {payload['confidence'] * 100:.1f}%\n"
+                             f"Severity: {payload['severity']}"),
+                severity=payload['severity'], status='open',
                 threat=threat,
             )
         if cfg.websocket_notifications:
@@ -144,7 +139,6 @@ class ThreatViewSet(viewsets.ModelViewSet):
         threat.status = 'resolved'
         threat.resolved_at = now
         extra = (request.data.get('notes') or '').strip()
-        # Append: never overwrite the response history
         threat.notes = (threat.notes or '') + (
             f"\n\n--- RESOLVED ---\nResolved by: {request.user.email}\n"
             f"Timestamp: {now.isoformat()}" + (f"\nNotes: {extra}" if extra else ""))
