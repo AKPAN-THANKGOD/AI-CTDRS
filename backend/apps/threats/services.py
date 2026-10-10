@@ -29,7 +29,7 @@ class ThreatDetectionService:
             if cls._loaded:
                 return
             
-            # Use the multi-class model directory as per your thesis
+            # Path to your multi-class CIC-IDS2017 models
             model_dir = os.path.join(django_settings.BASE_DIR, 'models', 'cicids2017')
             
             cls._ensemble = joblib.load(os.path.join(model_dir, 'ensemble_model.pkl'))
@@ -79,11 +79,15 @@ class ThreatDetectionService:
         # 3. Predict (Multi-class)
         prediction_idx = cls._ensemble.predict(X)[0]
         proba = cls._ensemble.predict_proba(X)[0]
-        confidence = float(proba.max())
+        
+        # Get individual model confidences for the frontend
+        rf_proba = cls._ensemble.estimators_[0].predict_proba(X)[0]
+        xgb_proba = cls._ensemble.estimators_[1].predict_proba(X)[0]
         
         threat_type = cls._label_encoder.inverse_transform([prediction_idx])[0]
+        confidence = float(proba.max())
         
-        # 4. Determine severity based on threat type and confidence
+        # 4. Determine severity and thresholds
         cfg = SystemSettings.load()
         is_threat = threat_type.lower() != 'benign'
         
@@ -98,11 +102,16 @@ class ThreatDetectionService:
         else:
             severity = 'low'
 
+        # 5. Build the exact payload the frontend expects
         result = {
             'is_threat': is_threat,
-            'threat_type': threat_type,  # <-- Now outputs actual attack names!
+            'threat_type': threat_type,
             'severity': severity,
             'confidence': confidence,
+            'attack_probability': confidence if is_threat else 0.0,
+            'rf_confidence': float(rf_proba.max()),
+            'xgb_confidence': float(xgb_proba.max()),
+            'threshold_used': cfg.confidence_threshold,
             'features_provided': provided,
             'features_total': len(cls._feature_names),
             'unknown_features': unknown,
