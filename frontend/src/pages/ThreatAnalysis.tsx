@@ -1,4 +1,3 @@
-// LOCATION: frontend/src/pages/ThreatAnalysis.tsx
 import { useState } from "react";
 import { threatService } from "../services/api";
 import toast, { Toaster } from "react-hot-toast";
@@ -30,7 +29,20 @@ export default function ThreatAnalysis() {
   const handleAnalyze = async () => {
     setLoading(true);
     try {
-      const response = await threatService.analyze({ features, src_ip: srcIp, dst_ip: dstIp });
+      // 🔧 FIX: Clean up feature names to match backend expectations
+      // e.g., "Fwd Header Length.1" -> "Fwd Header Length"
+      const cleanedFeatures: Record<string, number> = {};
+      Object.entries(features).forEach(([key, value]) => {
+        const cleanKey = key.replace(/\.1$/, "").trim();
+        cleanedFeatures[cleanKey] = value;
+      });
+
+      const response = await threatService.analyze({ 
+        features: cleanedFeatures, 
+        src_ip: srcIp, 
+        dst_ip: dstIp 
+      });
+      
       setResult(response.data);
       toast.success("Analysis complete!");
     } catch (error: any) {

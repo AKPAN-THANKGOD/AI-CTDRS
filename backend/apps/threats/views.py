@@ -138,6 +138,13 @@ class ThreatViewSet(viewsets.ModelViewSet):
         self.get_object().delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+
+    @action(detail=False, methods=['get'])
+    def get_feature_names(self, request):
+        """Temporary endpoint to see what the model expects."""
+        from .services import ThreatDetectionService
+        return Response(ThreatDetectionService.feature_names())
+
     @action(detail=False, methods=['get'])
     def export_csv(self, request):
         response = HttpResponse(content_type='text/csv')
