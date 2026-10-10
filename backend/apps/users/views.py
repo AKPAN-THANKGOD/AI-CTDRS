@@ -120,16 +120,16 @@ class UserManagementViewSet(viewsets.ModelViewSet):
 def create_demo_admin(request):
     """
     Bulletproof endpoint to create or reset the admin account.
-    Handles username conflicts automatically.
+    Uses create_user to avoid TypeError with custom fields.
     """
     email = 'admin@ctdrs.com'
     password = 'Admin123!'
     
-    # 1. Try to find existing user by email
+    # 1. Try to find existing user by email (case-insensitive)
     user = User.objects.filter(email__iexact=email).first()
     
     if not user:
-        # 2. Generate a guaranteed unique username to avoid IntegrityError
+        # 2. Generate a guaranteed unique username
         base_username = email.split('@')[0]
         username = base_username
         counter = 1
@@ -137,17 +137,23 @@ def create_demo_admin(request):
             username = f"{base_username}{counter}"
             counter += 1
             
-        # 3. Create the superuser
-        user = User.objects.create_superuser(
-            email=email,
+        # 3. Create the user safely (this hashes the password and accepts custom fields)
+        user = User.objects.create_user(
             username=username,
+            email=email,
             password=password,
             full_name='System Admin',
             role='admin'
         )
-        return Response({"message": f"✅ Admin account created successfully! (Username assigned: {username})"})
+        
+        # 4. Manually elevate to superuser
+        user.is_staff = True
+        user.is_superuser = True
+        user.save()
+        
+        return Response({"message": f"✅ Admin account created successfully! (Username: {username})"})
     
-    # 4. If user exists, just reset password and ensure admin privileges
+    # 5. If user exists, just reset password and ensure admin privileges
     user.set_password(password)
     user.is_active = True
     user.is_staff = True
