@@ -1,4 +1,3 @@
-# LOCATION: backend/apps/threats/views.py
 import csv
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -47,14 +46,33 @@ class ThreatViewSet(viewsets.ModelViewSet):
         prediction = ThreatDetectionService.predict(data['features'])
         cfg = SystemSettings.load()
 
-        payload = dict(prediction)
-        payload['source_ip'] = data['src_ip']
-        payload['recorded'] = False
+        # BULLETPROOF: Build the FULL payload with every field the frontend expects
+        payload = {
+            'is_threat': prediction['is_threat'],
+            'threat_type': prediction['threat_type'],
+            'severity': prediction['severity'],
+            'confidence': prediction['confidence'],
+            'attack_probability': prediction.get('attack_probability', 
+                                                prediction['confidence'] if prediction['is_threat'] else 0.0),
+            'rf_confidence': prediction.get('rf_confidence', prediction['confidence']),
+            'xgb_confidence': prediction.get('xgb_confidence', prediction['confidence']),
+            'threshold_used': prediction.get('threshold_used', cfg.confidence_threshold),
+            'source_ip': data['src_ip'],
+            'destination_ip': data.get('dst_ip'),
+            'features_provided': prediction.get('features_provided', 0),
+            'features_total': prediction.get('features_total', 0),
+            'unknown_features': prediction.get('unknown_features', []),
+            'shap_explanation': prediction.get('shap_explanation', []),
+            'lime_explanation': prediction.get('lime_explanation', []),
+            'response_time_ms': prediction.get('response_time_ms', 0),
+            'recorded': False,
+        }
 
-        # Benign traffic is returned to the analyst but NOT stored as a threat.
+        # Benign traffic is returned but NOT stored as a threat
         if not prediction['is_threat']:
             return Response(payload, status=status.HTTP_200_OK)
 
+        # Create threat record
         threat = Threat.objects.create(
             threat_type=prediction['threat_type'],
             severity=prediction['severity'],
@@ -83,7 +101,7 @@ class ThreatViewSet(viewsets.ModelViewSet):
                              f"Confidence: {prediction['confidence'] * 100:.1f}%\n"
                              f"Severity: {prediction['severity']}"),
                 severity=prediction['severity'], status='open',
-                threat=threat,                       # real FK: full traceability
+                threat=threat,
             )
         if cfg.websocket_notifications:
             broadcast_threat(ThreatSerializer(threat).data)
@@ -137,13 +155,6 @@ class ThreatViewSet(viewsets.ModelViewSet):
     def dismiss(self, request, pk=None):
         self.get_object().delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-    @action(detail=False, methods=['get'])
-    def get_feature_names(self, request):
-        """Temporary endpoint to see what the model expects."""
-        from .services import ThreatDetectionService
-        return Response(ThreatDetectionService.feature_names())
 
     @action(detail=False, methods=['get'])
     def export_csv(self, request):

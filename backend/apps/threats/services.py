@@ -63,7 +63,6 @@ class ThreatDetectionService:
         idx = {n: i for i, n in enumerate(names)}
         unknown = [k for k in features if k not in idx]
         
-        # Initialize with zeros for missing features
         raw_vector = np.zeros(len(names))
         provided = 0
         
@@ -80,7 +79,7 @@ class ThreatDetectionService:
         prediction_idx = cls._ensemble.predict(X)[0]
         proba = cls._ensemble.predict_proba(X)[0]
         
-        # Get individual model confidences for the frontend
+        # Get individual model confidences
         rf_proba = cls._ensemble.estimators_[0].predict_proba(X)[0]
         xgb_proba = cls._ensemble.estimators_[1].predict_proba(X)[0]
         
@@ -89,20 +88,20 @@ class ThreatDetectionService:
         
         # 4. Determine severity and thresholds
         cfg = SystemSettings.load()
-        is_threat = threat_type.lower() != 'benign'
+        is_threat = threat_type.lower() not in ['benign', 'benign traffic']
         
         if not is_threat:
             severity = 'low'
-        elif confidence >= cfg.critical_threshold or threat_type in ['DDoS', 'Botnet']:
+        elif confidence >= cfg.critical_threshold or threat_type in ['DDoS', 'Botnet', 'Bot']:
             severity = 'critical'
-        elif confidence >= cfg.high_threshold or threat_type in ['PortScan', 'Brute Force', 'Web Attack']:
+        elif confidence >= cfg.high_threshold or threat_type in ['PortScan', 'Brute Force', 'BruteForce', 'Web Attack', 'WebAttack']:
             severity = 'high'
         elif confidence >= cfg.medium_threshold:
             severity = 'medium'
         else:
             severity = 'low'
 
-        # 5. Build the exact payload the frontend expects
+        # 5. Build the EXACT payload the frontend expects - NO missing fields
         result = {
             'is_threat': is_threat,
             'threat_type': threat_type,
@@ -111,7 +110,7 @@ class ThreatDetectionService:
             'attack_probability': confidence if is_threat else 0.0,
             'rf_confidence': float(rf_proba.max()),
             'xgb_confidence': float(xgb_proba.max()),
-            'threshold_used': cfg.confidence_threshold,
+            'threshold_used': float(cfg.confidence_threshold),
             'features_provided': provided,
             'features_total': len(cls._feature_names),
             'unknown_features': unknown,
@@ -120,8 +119,13 @@ class ThreatDetectionService:
         }
         
         if explain and is_threat:
-            result['shap_explanation'] = cls._shap_explain(X, raw_vector)
-            result['lime_explanation'] = cls._lime_explain(X[0])
+            try:
+                result['shap_explanation'] = cls._shap_explain(X, raw_vector)
+                result['lime_explanation'] = cls._lime_explain(X[0])
+            except Exception as e:
+                print(f"⚠️ Explainability error: {e}")
+                result['shap_explanation'] = []
+                result['lime_explanation'] = []
             
         result['response_time_ms'] = (time.time() - t0) * 1000
         return result
