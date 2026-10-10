@@ -29,7 +29,6 @@ class RegisterView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         
-        # Generate tokens for immediate login
         refresh = RefreshToken.for_user(user)
         
         return Response({
@@ -53,11 +52,9 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
         
-        # Update last login
         user.last_login = timezone.now()
         user.save(update_fields=['last_login'])
         
-        # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
         
         return Response({
@@ -122,26 +119,35 @@ class UserManagementViewSet(viewsets.ModelViewSet):
 @permission_classes([AllowAny])
 def create_demo_admin(request):
     """
-    Temporary endpoint to create a known admin account.
-    Safe to leave in code, as it only creates the user if they don't exist,
-    and resets the password to a known value if they do.
+    Bulletproof endpoint to create or reset the admin account.
+    Handles username conflicts automatically.
     """
     email = 'admin@ctdrs.com'
     password = 'Admin123!'
     
-    user, created = User.objects.get_or_create(
-        email=email,
-        defaults={
-            'username': 'admin',
-            'full_name': 'System Admin',
-            'role': 'admin',
-            'is_active': True,
-            'is_staff': True,
-            'is_superuser': True
-        }
-    )
+    # 1. Try to find existing user by email
+    user = User.objects.filter(email__iexact=email).first()
     
-    # Always ensure the password is exactly what we expect
+    if not user:
+        # 2. Generate a guaranteed unique username to avoid IntegrityError
+        base_username = email.split('@')[0]
+        username = base_username
+        counter = 1
+        while User.objects.filter(username=username).exists():
+            username = f"{base_username}{counter}"
+            counter += 1
+            
+        # 3. Create the superuser
+        user = User.objects.create_superuser(
+            email=email,
+            username=username,
+            password=password,
+            full_name='System Admin',
+            role='admin'
+        )
+        return Response({"message": f"✅ Admin account created successfully! (Username assigned: {username})"})
+    
+    # 4. If user exists, just reset password and ensure admin privileges
     user.set_password(password)
     user.is_active = True
     user.is_staff = True
@@ -149,7 +155,4 @@ def create_demo_admin(request):
     user.role = 'admin'
     user.save()
     
-    if created:
-        return Response({"message": "✅ Admin account created successfully!"})
-    else:
-        return Response({"message": "✅ Admin account password reset successfully!"})
+    return Response({"message": "✅ Admin account password reset successfully!"})
