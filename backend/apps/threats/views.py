@@ -2,7 +2,7 @@ import csv
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.utils import timezone
 from django.http import HttpResponse
 
@@ -33,7 +33,36 @@ class ThreatViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('create', 'update', 'partial_update', 'destroy', 'dismiss'):
             return [IsAuthenticated(), IsAdmin()]
+        # Allow public access to our diagnostic endpoints
+        if self.action in ('ping_deployment', 'test_services'):
+            return [AllowAny()]
         return [IsAuthenticated()]
+
+    @action(detail=False, methods=['get'])
+    def ping_deployment(self, request):
+        return Response({
+            "status": "SUCCESS",
+            "marker": "NEW_CODE_DEPLOYED_2026_10_10",
+            "message": "If you see this, views.py is 100% updated."
+        })
+
+    @action(detail=False, methods=['get'])
+    def test_services(self, request):
+        """Directly tests the AI service to see what it's actually predicting."""
+        try:
+            # Pass a tiny dummy payload to force a prediction
+            dummy_features = {"Flow Duration": 1000000, "Total Fwd Packets": 50}
+            result = ThreatDetectionService.predict(dummy_features, explain=False)
+            return Response({
+                "status": "SUCCESS",
+                "message": "This is the RAW output from services.py",
+                "prediction": result
+            })
+        except Exception as e:
+            return Response({
+                "status": "ERROR",
+                "error": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['post'])
     def analyze(self, request):
@@ -44,7 +73,6 @@ class ThreatViewSet(viewsets.ModelViewSet):
         prediction = ThreatDetectionService.predict(data['features'])
         cfg = SystemSettings.load()
 
-        # GUARANTEE: Every field the frontend needs is present
         payload = {
             'is_threat': bool(prediction.get('is_threat', False)),
             'threat_type': str(prediction.get('threat_type', 'Unknown')),
@@ -63,7 +91,7 @@ class ThreatViewSet(viewsets.ModelViewSet):
             'lime_explanation': list(prediction.get('lime_explanation', [])),
             'response_time_ms': float(prediction.get('response_time_ms', 0.0)),
             'recorded': False,
-            'test_marker': 'NEW_CODE_DEPLOYED_2026_10_10',  # ← THIS PROVES NEW CODE IS RUNNING
+            'test_marker': 'NEW_CODE_DEPLOYED_2026_10_10',
         }
 
         if not payload['is_threat']:
@@ -108,17 +136,14 @@ class ThreatViewSet(viewsets.ModelViewSet):
     def respond(self, request, pk=None):
         threat = self.get_object()
         if threat.status != 'open':
-            return Response({'error': f'Threat is already {threat.status}'},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': f'Threat is already {threat.status}'}, status=status.HTTP_400_BAD_REQUEST)
         action_taken = (request.data.get('action_taken') or '').strip()
         notes = (request.data.get('notes') or '').strip()
         severity_assessment = request.data.get('severity_assessment') or threat.severity
         if not action_taken or not notes:
-            return Response({'error': 'action_taken and notes are required'},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'action_taken and notes are required'}, status=status.HTTP_400_BAD_REQUEST)
         if severity_assessment not in SEVERITIES:
-            return Response({'error': f"severity_assessment must be one of {', '.join(SEVERITIES)}"},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': f"severity_assessment must be one of {', '.join(SEVERITIES)}"}, status=status.HTTP_400_BAD_REQUEST)
 
         now = timezone.now()
         threat.status = 'responded'
@@ -134,8 +159,7 @@ class ThreatViewSet(viewsets.ModelViewSet):
     def resolve(self, request, pk=None):
         threat = self.get_object()
         if threat.status == 'resolved':
-            return Response({'error': 'Threat is already resolved'},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Threat is already resolved'}, status=status.HTTP_400_BAD_REQUEST)
         now = timezone.now()
         threat.status = 'resolved'
         threat.resolved_at = now
@@ -150,18 +174,6 @@ class ThreatViewSet(viewsets.ModelViewSet):
     def dismiss(self, request, pk=None):
         self.get_object().delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @action(detail=False, methods=['get'])
-    def ping_deployment(self, request):
-        """
-        A dead-simple GET endpoint to prove the new code is live.
-        If you see this in your browser, the new code is 100% deployed.
-        """
-        return Response({
-            "status": "SUCCESS",
-            "marker": "NEW_CODE_DEPLOYED_2026_10_10",
-            "message": "If you see this, the backend is updated. The frontend is the problem."
-        })
 
     @action(detail=False, methods=['get'])
     def export_csv(self, request):
@@ -189,6 +201,3 @@ class ThreatViewSet(viewsets.ModelViewSet):
             'open': Threat.objects.filter(status='open').count(),
             'critical': Threat.objects.filter(severity='critical').count(),
         })
-
-
-  
