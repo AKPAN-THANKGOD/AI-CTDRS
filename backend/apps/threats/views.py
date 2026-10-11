@@ -152,6 +152,18 @@ class ThreatViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=['get'])
+    def ping_deployment(self, request):
+        """
+        A dead-simple GET endpoint to prove the new code is live.
+        If you see this in your browser, the new code is 100% deployed.
+        """
+        return Response({
+            "status": "SUCCESS",
+            "marker": "NEW_CODE_DEPLOYED_2026_10_10",
+            "message": "If you see this, the backend is updated. The frontend is the problem."
+        })
+
+    @action(detail=False, methods=['get'])
     def export_csv(self, request):
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="threats_export.csv"'
@@ -177,3 +189,6 @@ class ThreatViewSet(viewsets.ModelViewSet):
             'open': Threat.objects.filter(status='open').count(),
             'critical': Threat.objects.filter(severity='critical').count(),
         })
+
+
+  
